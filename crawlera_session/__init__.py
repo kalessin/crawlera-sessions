@@ -64,7 +64,7 @@ from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 
 __version__ = '1.0'
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class RequestSession(object):
