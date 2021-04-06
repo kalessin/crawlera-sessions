@@ -68,10 +68,11 @@ logger = logging.getLogger(__name__)
 
 
 class RequestSession(object):
-    def __init__(self, crawlera_session=True, x_crawlera_cookies='disable', x_crawlera_profile=None):
+    def __init__(self, crawlera_session=True, x_crawlera_cookies='disable', x_crawlera_profile=None, x_crawlera_wait=None):
         self.crawlera_session = crawlera_session
         self.x_crawlera_cookies = x_crawlera_cookies
         self.x_crawlera_profile = x_crawlera_profile
+        self.x_crawlera_wait = x_crawlera_wait
 
     def follow_session(self, wrapped):
         def _wrapper(spider, response):
@@ -104,6 +105,8 @@ class RequestSession(object):
             request.headers['X-Crawlera-Cookies'] = self.x_crawlera_cookies
         if self.x_crawlera_profile is not None:
             request.headers['X-Crawlera-Profile'] = self.x_crawlera_profile
+        if self.x_crawlera_wait is not None:
+            request.headers['X-Crawlera-Wait'] = self.x_crawlera_wait
 
     def init_request(self, request):
         if 'cookiejar' not in request.meta:
