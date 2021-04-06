@@ -62,7 +62,7 @@ from scrapy import Request
 from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 logger = logging.getLogger(__name__)
 
