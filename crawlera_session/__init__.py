@@ -75,7 +75,7 @@ class RequestSession(object):
         self.x_crawlera_wait = x_crawlera_wait
 
     def follow_session(self, wrapped):
-        def _wrapper(spider, response):
+        def _wrapper(spider, response, *args, **kwargs):
             if not hasattr(spider, 'crawlera_sessions'):
                 spider.crawlera_sessions = OrderedDict()
             try:
@@ -86,7 +86,7 @@ class RequestSession(object):
                     cookiejar = cookiejars[-1]  # use newest session by default
                 else:
                     raise ValueError('You must initialize request.')
-            for obj in wrapped(spider, response):
+            for obj in wrapped(spider, response, *args, **kwargs):
                 if isinstance(obj, Request) and not obj.meta.get('no_crawlera_session', False):
                     if self.crawlera_session and 'X-Crawlera-Session' not in obj.headers:
                         session = spider.crawlera_sessions.setdefault(cookiejar, response.headers['X-Crawlera-Session'])
@@ -119,7 +119,7 @@ class RequestSession(object):
     def init_start_requests(self, wrapped):
         def _wrapper(spider):
             if not hasattr(spider, 'crawlera_sessions'):
-                spider.crawlera_sessions = {}
+                spider.crawlera_sessions = OrderedDict()
             for request in wrapped(spider):
                 self.init_request(request)
                 yield request
