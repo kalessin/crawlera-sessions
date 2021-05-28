@@ -58,7 +58,7 @@ from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 
 
-__version__ = '1.1.0'
+__version__ = "1.1.0"
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,9 @@ class WrongSessionError(Exception):
 
 
 class RequestSession(object):
-    def __init__(self, crawlera_session=True, x_crawlera_cookies='disable', x_crawlera_profile=None, x_crawlera_wait=None):
+    def __init__(
+        self, crawlera_session=True, x_crawlera_cookies="disable", x_crawlera_profile=None, x_crawlera_wait=None
+    ):
         self.crawlera_session = crawlera_session
         self.x_crawlera_cookies = x_crawlera_cookies
         self.x_crawlera_profile = x_crawlera_profile
@@ -81,18 +83,19 @@ class RequestSession(object):
     def follow_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             try:
-                cookiejar = response.meta['cookiejar']
+                cookiejar = response.meta["cookiejar"]
             except KeyError:
-                raise SessionNotInitializedError('You must initialize previous request.')
+                raise SessionNotInitializedError("You must initialize previous request.")
 
             # conserved for compatibility with previous versions. This is now performed on new cookies
             # middleware below.
-            spider.crawlera_sessions.setdefault(cookiejar, response.headers['X-Crawlera-Session'])
+            spider.crawlera_sessions.setdefault(cookiejar, response.headers["X-Crawlera-Session"])
 
             for obj in wrapped(spider, response, *args, **kwargs):
-                if isinstance(obj, Request) and not obj.meta.get('no_crawlera_session', False):
+                if isinstance(obj, Request) and not obj.meta.get("no_crawlera_session", False):
                     self.assign_crawlera_session(spider, obj, cookiejar)
                 yield obj
+
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
 
@@ -100,50 +103,51 @@ class RequestSession(object):
         if cookiejar is None:
             if spider.can_add_new_sessions():
                 self.init_request(request)
-                spider.locked_sessions.add(request.meta['cookiejar'])
+                spider.locked_sessions.add(request.meta["cookiejar"])
                 return True
             if spider.available_sessions:
                 cookiejar = random.choice(spider.available_sessions)
         if cookiejar is None:
             return False
         else:
-            if self.crawlera_session and 'X-Crawlera-Session' not in request.headers:
+            if self.crawlera_session and "X-Crawlera-Session" not in request.headers:
                 session = spider.crawlera_sessions[cookiejar]
                 logger.debug(f"Assigned session {session} to {request} from cookiejar {cookiejar}")
-                request.headers['X-Crawlera-Session'] = session
+                request.headers["X-Crawlera-Session"] = session
             self._adapt_request(request)
-            if 'cookiejar' not in request.meta:
-                request.meta['cookiejar'] = cookiejar
+            if "cookiejar" not in request.meta:
+                request.meta["cookiejar"] = cookiejar
             else:
                 # this shouldn't be happening, but lets add a check line in case logic fails somewhere
-                raise WrongSessionError(f'{request} Tried to assign a session to a request that already had one.')
+                raise WrongSessionError(f"{request} Tried to assign a session to a request that already had one.")
             spider.locked_sessions.add(cookiejar)
             return True
 
     def _adapt_request(self, request):
         if self.x_crawlera_cookies is not None:
-            request.headers['X-Crawlera-Cookies'] = self.x_crawlera_cookies
+            request.headers["X-Crawlera-Cookies"] = self.x_crawlera_cookies
         if self.x_crawlera_profile is not None:
-            request.headers['X-Crawlera-Profile'] = self.x_crawlera_profile
+            request.headers["X-Crawlera-Profile"] = self.x_crawlera_profile
         if self.x_crawlera_wait is not None:
-            request.headers['X-Crawlera-Wait'] = self.x_crawlera_wait
+            request.headers["X-Crawlera-Wait"] = self.x_crawlera_wait
 
     def init_request(self, request):
-        if 'cookiejar' not in request.meta:
-            request.meta['cookiejar'] = str(uuid.uuid1())
+        if "cookiejar" not in request.meta:
+            request.meta["cookiejar"] = str(uuid.uuid1())
         if self.crawlera_session:
-            request.headers['X-Crawlera-Session'] = 'create'
+            request.headers["X-Crawlera-Session"] = "create"
         self._adapt_request(request)
         logger.debug(f"Session initiation for {request}")
         return request
 
     def init_start_requests(self, wrapped):
         def _wrapper(spider):
-            if not hasattr(spider, 'crawlera_sessions'):
-                raise AttributeError('You have to subclass your spider from CrawleraSessionMixinSpider class')
+            if not hasattr(spider, "crawlera_sessions"):
+                raise AttributeError("You have to subclass your spider from CrawleraSessionMixinSpider class")
             for request in wrapped(spider):
                 self.init_request(request)
                 yield request
+
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
 
@@ -152,32 +156,31 @@ class RequestSession(object):
             for obj in wrapped(spider, response, *args, **kwargs):
                 if isinstance(obj, Request):
                     # session will be assigned at downloader enqueue
-                    obj.meta['defer_assign_crawlera_session'] = self.assign_crawlera_session
+                    obj.meta["defer_assign_crawlera_session"] = self.assign_crawlera_session
                 yield obj
+
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
 
     def unlock_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
-            spider.locked_sessions.discard(response.meta['cookiejar'])
-            yield from  wrapped(spider, response, *args, **kwargs)
+            spider.locked_sessions.discard(response.meta["cookiejar"])
+            yield from wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
 
 
 class CrawleraSessionRedirectMiddleware(RedirectMiddleware):
-
     def process_response(self, request, response, spider):
         obj = super(CrawleraSessionRedirectMiddleware, self).process_response(request, response, spider)
         if isinstance(obj, Request):
-            if 'X-Crawlera-Session' in response.headers:
-                obj.headers['X-Crawlera-Session'] = response.headers['X-Crawlera-Session']
+            if "X-Crawlera-Session" in response.headers:
+                obj.headers["X-Crawlera-Session"] = response.headers["X-Crawlera-Session"]
         return obj
 
 
 class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
-
     @classmethod
     def from_crawler(cls, crawler):
         obj = super().from_crawler(crawler)
@@ -194,7 +197,7 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
         orig_scheduler_next_request = scheduler.next_request
 
         def _can_enqueue_request(request):
-            if request.meta.get('cookiejar'):
+            if request.meta.get("cookiejar"):
                 return True
             if spider.can_add_new_sessions():
                 return True
@@ -219,19 +222,19 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
         assert not self.retained_requests, "Unqueued retained requests."
 
     def process_request(self, request, spider):
-        assign_crawlera_session = request.meta.get('defer_assign_crawlera_session')
+        assign_crawlera_session = request.meta.get("defer_assign_crawlera_session")
         if assign_crawlera_session is not None:
             if assign_crawlera_session(spider, request):
-                request.meta.pop('defer_assign_crawlera_session')
+                request.meta.pop("defer_assign_crawlera_session")
             else:
-                spider.crawler.stats.inc_value('crawlera_sessions/no_unlocked_sessions')
+                spider.crawler.stats.inc_value("crawlera_sessions/no_unlocked_sessions")
                 raise IgnoreRequest(f"No unlocked session for {request}")
         return super().process_request(request, spider)
 
     def process_response(self, request, response, spider):
-        if 'X-Crawlera-Session' in response.headers:
-            cookiejar = request.meta['cookiejar']
-            spider.crawlera_sessions.setdefault(cookiejar, response.headers['X-Crawlera-Session'])
+        if "X-Crawlera-Session" in response.headers:
+            cookiejar = request.meta["cookiejar"]
+            spider.crawlera_sessions.setdefault(cookiejar, response.headers["X-Crawlera-Session"])
         return super().process_response(request, response, spider)
 
 
@@ -245,15 +248,20 @@ class CrawleraSessionMixinSpider:
     @classmethod
     def update_settings(cls, settings):
         super().update_settings(settings)
-        DW_MIDDLEWARES = settings.get('DOWNLOADER_MIDDLEWARES')
+        DW_MIDDLEWARES = settings.get("DOWNLOADER_MIDDLEWARES")
 
-        pos = settings.get('DOWNLOADER_MIDDLEWARES_BASE').pop('scrapy.downloadermiddlewares.redirect.RedirectMiddleware')
-        DW_MIDDLEWARES['crawlera_session.CrawleraSessionRedirectMiddleware'] = pos
-        pos = settings.get('DOWNLOADER_MIDDLEWARES_BASE').pop('scrapy.downloadermiddlewares.cookies.CookiesMiddleware')
-        DW_MIDDLEWARES['crawlera_session.CrawleraSessionCookiesMiddleware'] = pos
+        pos = settings.get("DOWNLOADER_MIDDLEWARES_BASE").pop(
+            "scrapy.downloadermiddlewares.redirect.RedirectMiddleware"
+        )
+        DW_MIDDLEWARES["crawlera_session.CrawleraSessionRedirectMiddleware"] = pos
+        pos = settings.get("DOWNLOADER_MIDDLEWARES_BASE").pop("scrapy.downloadermiddlewares.cookies.CookiesMiddleware")
+        DW_MIDDLEWARES["crawlera_session.CrawleraSessionCookiesMiddleware"] = pos
 
     def can_add_new_sessions(self):
-        return self.MAX_PARALLEL_CRAWLERA_SESSIONS is None or len(self.crawlera_sessions) < self.MAX_PARALLEL_CRAWLERA_SESSIONS
+        return (
+            self.MAX_PARALLEL_CRAWLERA_SESSIONS is None
+            or len(self.crawlera_sessions) < self.MAX_PARALLEL_CRAWLERA_SESSIONS
+        )
 
     @property
     def available_sessions(self):
