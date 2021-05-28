@@ -1,51 +1,5 @@
 """
-Decorator for callbacks that returns iterator of requests.
-This decorator must be applied for every callback that yields requests that
-must conserve session. For starting requests, use init_start_request.
-In most use cases, each start request should have a different one.
-
-You will also need to replace the default redirect middleware with the one provided here.
-
-Example:
-
-
-crawlera_session = RequestSession()
-
-
-class MySpider(CrawleraSessionMixinSpider, Spider):
-
-    @crawlera_session.init_start_requests
-    def start_requests(self):
-        ...
-        yield Request(...)
-
-
-    @crawlera_session.follow_session
-    def parse(self, response):
-        ...
-        yield Request(...)
-
-
-Some times you need to initialize a session for a single request generated in a spider method. In that case,
-you can use init_request() method:
-
-    def parse(self, response):
-        ...
-        yield Request(...)
-        ...
-        yield crawlera_session.init_request(Request(...))
-
-
-If on the contrary, you want to send a normal (not session) request from a callback that was decorated with follow_session,
-you can use the no_crawlera_session meta tag:
-
-    @crawlera_session.follow_session
-    def parse(self, response):
-        ...
-        yield Request(...)
-        ...
-        yield Request(..., meta={'no_crawlera_session': True})
-
+See repo README
 """
 import uuid
 import logging
