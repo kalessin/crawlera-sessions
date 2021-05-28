@@ -12,7 +12,7 @@ from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class CrawleraSessionMixinSpider:
     crawlera_sessions = OrderedDict()
     locked_sessions = set()
 
-    MAX_PARALLEL_CRAWLERA_SESSIONS = None
+    MAX_PARALLEL_SESSIONS = None
 
     @classmethod
     def update_settings(cls, settings):
@@ -213,8 +213,8 @@ class CrawleraSessionMixinSpider:
 
     def can_add_new_sessions(self):
         return (
-            self.MAX_PARALLEL_CRAWLERA_SESSIONS is None
-            or len(self.crawlera_sessions) < self.MAX_PARALLEL_CRAWLERA_SESSIONS
+            self.MAX_PARALLEL_SESSIONS is None
+            or len(self.crawlera_sessions) < self.MAX_PARALLEL_SESSIONS
         )
 
     @property
