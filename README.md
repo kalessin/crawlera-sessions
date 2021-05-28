@@ -8,6 +8,9 @@ pip install crawlera-session
 
 # Usage
 
+Ensure `COOKIES_ENABLED` is set to True (otherwise there is no point in using this class)
+Subclass your spider from `CrawleraSessionMixinSpider`.
+
 Provided decorator must be applied for every callback that yields requests that
 must conserve session. For starting requests, use `init_start_request`. This decorator will
 instruct requests provided by start requests, to initiate each one a new session.
