@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name         = 'crawlera-session',
-    version      = '1.2.1',
+    version      = '1.2.2',
     description  = 'Class that provides decorators and functions for easy handling of crawlera sessions in a scrapy spider.',
     license      = 'BSD',
     author       = 'Martin Olveyra',

@@ -12,7 +12,7 @@ from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +41,12 @@ class RequestSession(object):
             except KeyError:
                 raise SessionNotInitializedError("You must initialize previous request.")
 
-            # conserved for compatibility with previous versions. This is now performed on new cookies
-            # middleware below.
-            spider.crawlera_sessions.setdefault(cookiejar, response.headers["X-Crawlera-Session"])
-
             for obj in wrapped(spider, response, *args, **kwargs):
-                if isinstance(obj, Request) and not obj.meta.get("no_crawlera_session", False):
+                if (
+                    isinstance(obj, Request)
+                    and not obj.meta.get("no_crawlera_session", False)
+                    and "cookiejar" not in obj.meta
+                ):
                     self.assign_crawlera_session(spider, obj, cookiejar)
                 yield obj
 
@@ -157,6 +157,7 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
                 return True
             if spider.available_sessions:
                 return True
+            return False
 
         def _next_request():
             for request in list(self.retained_requests):
@@ -212,10 +213,7 @@ class CrawleraSessionMixinSpider:
         DW_MIDDLEWARES["crawlera_session.CrawleraSessionCookiesMiddleware"] = pos
 
     def can_add_new_sessions(self):
-        return (
-            self.MAX_PARALLEL_SESSIONS is None
-            or len(self.crawlera_sessions) < self.MAX_PARALLEL_SESSIONS
-        )
+        return self.MAX_PARALLEL_SESSIONS is None or len(self.crawlera_sessions) < self.MAX_PARALLEL_SESSIONS
 
     @property
     def available_sessions(self):
