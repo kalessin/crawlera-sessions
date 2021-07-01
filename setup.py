@@ -6,6 +6,8 @@ setup(
     name         = 'crawlera-session',
     version      = '1.2.3',
     description  = 'Class that provides decorators and functions for easy handling of crawlera sessions in a scrapy spider.',
+    long_description = open('README.md').read(),
+    long_description_content_type = 'text/markdown',
     license      = 'BSD',
     author       = 'Martin Olveyra',
     author_email = 'molveyra@gmail.com',
