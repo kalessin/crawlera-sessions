@@ -46,11 +46,33 @@ you can use `init_request()` method:
 ```python
     def parse(self, response):
         ...
+        # this request will not initiate session
         yield Request(...)
         ...
+        # this request will initiate session
         yield crawlera_session.init_request(Request(...))
 ```
 
+Alternatively, and probably more elegant with better code separation, you could do:
+
+
+```python
+    def parse(self, response):
+        ...
+        # this request will not initiate session
+        yield Request(...)
+
+        # this request will initiate session
+        yield from self.generate_init_requests(response)
+
+    @crawlera_session.init_requests
+    def generate_init_requests(self, response):
+        ...
+        yield Request(...)
+```
+
+The decorator `init_requests` (don't confuse with `init_request()` method just described) is similar to `init_start_request`
+but decorates a callback instead of `start_requests()`.
 
 If on the contrary, you want to send a normal (not session) request from a callback that was decorated with `follow_session`,
 you can use the `no_crawlera_session` meta tag:
@@ -59,10 +81,31 @@ you can use the `no_crawlera_session` meta tag:
     @crawlera_session.follow_session
     def parse(self, response):
         ...
+        # this request will follow same session coming from response
         yield Request(...)
         ...
+        # this request will not follow session
         yield Request(..., meta={'no_crawlera_session': True})
 ```
+
+or, alternatively:
+
+```python
+
+    def parse(self, response):
+        # this request will follow same session coming from response
+        yield from generate_session_reqs(response)
+        ...
+        # this request will not follow session
+        yield Request(...)
+
+    @crawlera_session.follow_session
+    def generate_session_reqs(self, response)
+        ...
+        yield Request(...)
+
+```
+
 
 In short, the logic `init_request->follow_session` makes a chain of requests to use the same session. So requests issued by callbacks
 decorated by `follow_session` reuse the session created by the request which initiated it, in the same request chain as defined
@@ -115,5 +158,42 @@ class MySpider(CrawleraSessionMixinSpider, Spider):
 
 For better performance, normally it is better to set the number of concurrent requests to the same as `MAX_PARALLEL_SESSIONS`.
 Notice that if you don't set `MAX_PARALLEL_SESSIONS`, the behavior of the callback decorated by `defer_assign_session` will
-be that all requests yielded by it will initiate a new session. That is, as if you applied `init_request()` to every request
-yielded by it.
+be that all requests yielded by it will initiate a new session. That is, as if you decorated instead with `init_requests`.
+So the lock/unlock logic doesn't have much sense. In this case, you can just use `init_requests` decorator:
+
+
+```python
+from crawlera_session import CrawleraSessionMixinSpider, RequestSession
+
+crawlera_session = RequestSession()
+
+
+class MySpider(CrawleraSessionMixinSpider, Spider):
+
+    MAX_PARALLEL_SESSIONS = 4
+
+    def start_requests(self):
+        ...
+        yield Request(...)
+
+    @crawlera_session.init_requests
+    def parse(self, response):
+        ...
+        yield Request(..., callback=callback2)
+
+    @crawlera_session.follow_session
+    def callback2(self, response):
+        yield Request(..., callback=callback3)
+
+    ...
+
+    @crawlera_session.discard_session
+    def callbackN(self, response):
+        yield Item(...)
+
+```
+
+
+Notice that in the last callback we replaced the decorator `unlock_session` by `discard_session`. This decorator is optional, but in
+case your spider generates large amounts of requests, the memory usage can increase significantly if you don't drop unused sessions.
+Regardless you need to use it or not for saving memory, it is still a good practice.
