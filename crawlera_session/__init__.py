@@ -105,6 +105,16 @@ class RequestSession(object):
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
 
+    def init_requests(self, wrapped):
+        def _wrapper(spider, response, *args, **kwargs):
+            for obj in wrapped(spider, response, *args, **kwargs):
+                if isinstance(obj, Request):
+                    self.init_request(obj)
+                yield obj
+
+        _wrapper.__name__ = wrapped.__name__
+        return _wrapper
+
     def defer_assign_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             for obj in wrapped(spider, response, *args, **kwargs):
@@ -119,6 +129,14 @@ class RequestSession(object):
     def unlock_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             spider.locked_sessions.discard(response.meta["cookiejar"])
+            yield from wrapped(spider, response, *args, **kwargs)
+
+        _wrapper.__name__ = wrapped.__name__
+        return _wrapper
+
+    def discard_session(self, wrapped):
+        def _wrapper(spider, response, *args, **kwargs):
+            spider.drop_response_session(response)
             yield from wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
@@ -218,3 +236,9 @@ class CrawleraSessionMixinSpider:
     @property
     def available_sessions(self):
         return [k for k in self.crawlera_sessions.keys() if k not in self.locked_sessions]
+
+    def drop_response_session(self, response):
+        session_id = response.meta.get("cookiejar")
+        if session_id is not None:
+            self.locked_sessions.discard(session_id)
+            self.crawlera_sessions.pop(session_id)
