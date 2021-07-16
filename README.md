@@ -158,8 +158,8 @@ class MySpider(CrawleraSessionMixinSpider, Spider):
 
 For better performance, normally it is better to set the number of concurrent requests to the same as `MAX_PARALLEL_SESSIONS`.
 Notice that if you don't set `MAX_PARALLEL_SESSIONS`, the behavior of the callback decorated by `defer_assign_session` will
-be that all requests yielded by it will initiate a new session. That is, as if you decorated instead with `init_requests`.
-So the lock/unlock logic doesn't have much sense. In this case, you can just use `init_requests` decorator:
+be that all requests yielded by it will initiate a new session. So the lock/unlock logic doesn't have much sense.
+In this case, you can just use `init_requests` decorator:
 
 
 ```python
@@ -196,4 +196,13 @@ class MySpider(CrawleraSessionMixinSpider, Spider):
 
 Notice that in the last callback we replaced the decorator `unlock_session` by `discard_session`. This decorator is optional, but in
 case your spider generates large amounts of requests, the memory usage can increase significantly if you don't drop unused sessions.
-Regardless you need to use it or not for saving memory, it is still a good practice.
+Regardless you need to use it or not for saving memory, it is still a good practice when you can apply it (in situations where there
+are multiple final chain requests, it is not possible to drop a session when reaching any one of them).
+
+Finally, if you want to adjust priority on each successive request of a chain of requests, the `RequestSession()` instantiator admits
+the parameter `priority_adjust`. For example, if you want to ensure that requests more advanced in the chain are sent before new
+initial chain requests when you have multiple of them, you would rather use:
+
+```
+crawlera_session = RequestSession(priority_adjust=1)
+```
