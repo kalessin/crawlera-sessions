@@ -27,12 +27,14 @@ class WrongSessionError(Exception):
 
 class RequestSession(object):
     def __init__(
-        self, crawlera_session=True, x_crawlera_cookies="disable", x_crawlera_profile=None, x_crawlera_wait=None
+        self, crawlera_session=True, x_crawlera_cookies="disable", x_crawlera_profile=None, x_crawlera_wait=None,
+        priority_adjust=0,
     ):
         self.crawlera_session = crawlera_session
         self.x_crawlera_cookies = x_crawlera_cookies
         self.x_crawlera_profile = x_crawlera_profile
         self.x_crawlera_wait = x_crawlera_wait
+        self.priority_adjust = priority_adjust
 
     def follow_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
@@ -48,6 +50,7 @@ class RequestSession(object):
                     and "cookiejar" not in obj.meta
                 ):
                     self.assign_crawlera_session(spider, obj, cookiejar)
+                    obj.priority = response.request.priority + self.priority_adjust
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
