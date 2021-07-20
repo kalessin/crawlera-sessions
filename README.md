@@ -199,10 +199,55 @@ case your spider generates large amounts of requests, the memory usage can incre
 Regardless you need to use it or not for saving memory, it is still a good practice when you can apply it (in situations where there
 are multiple final chain requests, it is not possible to drop a session when reaching any one of them).
 
+Usually, retries imply to reinitialize a session. The `RequestSession()` object provides a decorator for indicating special retry
+treatment on specific requests. For example, if the requests yielded by `callback3()` in the example above need to reinitialize
+session from the first request in the chain, you would write something like this:
+
+```python
+
+class MySpider(CrawleraSessionMixinSpider, Spider):
+
+    (...)
+
+    @crawlera_session.init_requests
+    def parse(self, response):
+        ...
+        yield Request(..., callback=callback2)
+
+
+    (...)
+
+    @crawlera_session.new_session_on_retry
+    @crawlera_session.follow_session
+    def callback3(self, response):
+        yield Request(...)
+
+    (...)
+
+    def session_retry_errback(self, failure):
+        if failure.request.callback is self.callback3:
+            return Request(..., callback=callback2)
+
+```
+
+Notice the introduction of a new decorator, `new_session_on_retry`, and the definition of `session_retry_errback()` method:
+
+- Every response yielded by a callback decorated by  `new_session_on_retry`, will be assigned the errback `session_retry_errback()`.
+  If this method is not overrode, the only result is a log message indicating that the errback hasn't been implemented.
+- Request returned by `session_retry_errback()` will be instructed internaly to initialize a new session, and the same errback will be
+  assigned to it. So you don't need explicit action for it.
+
+By default, the number of session retries for a given request will be 3. This default value can be overriden in the `RequestSession()`
+object initialization, i.e.:
+
+```python
+crawlera_session = RequestSession(new_session_retries=5)
+```
+
 Finally, if you want to adjust priority on each successive request of a chain of requests, the `RequestSession()` instantiator admits
 the parameter `priority_adjust`. For example, if you want to ensure that requests more advanced in the chain are sent before new
 initial chain requests when you have multiple of them, you would rather use:
 
-```
+```python
 crawlera_session = RequestSession(priority_adjust=1)
 ```

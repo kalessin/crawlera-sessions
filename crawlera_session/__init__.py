@@ -27,13 +27,19 @@ class WrongSessionError(Exception):
 
 class RequestSession(object):
     def __init__(
-        self, crawlera_session=True, x_crawlera_cookies="disable", x_crawlera_profile=None, x_crawlera_wait=None,
+        self,
+        crawlera_session=True,
+        x_crawlera_cookies="disable",
+        x_crawlera_profile=None,
+        x_crawlera_wait=None,
+        new_session_retries=3,
         priority_adjust=0,
     ):
         self.crawlera_session = crawlera_session
         self.x_crawlera_cookies = x_crawlera_cookies
         self.x_crawlera_profile = x_crawlera_profile
         self.x_crawlera_wait = x_crawlera_wait
+        self.new_session_retries = new_session_retries
         self.priority_adjust = priority_adjust
 
     def follow_session(self, wrapped):
@@ -139,8 +145,25 @@ class RequestSession(object):
 
     def discard_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
-            spider.drop_response_session(response)
+            spider.drop_session(response)
             yield from wrapped(spider, response, *args, **kwargs)
+
+        _wrapper.__name__ = wrapped.__name__
+        return _wrapper
+
+    def new_session_on_retry(self, wrapped):
+        def _wrapper(spider, response, *args, **kwargs):
+            for obj in wrapped(spider, response, *args, **kwargs):
+                if isinstance(obj, Request):
+                    # for skipping retry middleware
+                    obj.meta["dont_retry"] = True
+                    obj.meta["crawlera_session_obj"] = self
+                    obj.meta["retries"] = self.new_session_retries
+                    assert (
+                        not obj.errback or obj.errback is spider.session_retry_errback
+                    ), "Can't assign spider.session_retry_errback to request."
+                    obj.errback = spider._session_retry_errback
+                yield obj
 
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
@@ -240,8 +263,27 @@ class CrawleraSessionMixinSpider:
     def available_sessions(self):
         return [k for k in self.crawlera_sessions.keys() if k not in self.locked_sessions]
 
-    def drop_response_session(self, response):
-        session_id = response.meta.get("cookiejar")
+    def drop_session(self, response_or_request):
+        session_id = response_or_request.meta.get("cookiejar")
         if session_id is not None:
             self.locked_sessions.discard(session_id)
             self.crawlera_sessions.pop(session_id)
+
+    def _session_retry_errback(self, failure):
+        self.drop_session(failure.request)
+        retries = failure.request.meta["retries"]
+        if retries == 0:
+            self.logger.info(f"Gave up session retries for {failure.request}")
+            return
+        request = self.session_retry_errback(failure)
+        if request is not None:
+            failure.request.meta["crawlera_session_obj"].init_request(request)
+            request.dont_filter = True
+            request.errback = self._session_retry_errback
+            request.meta["retries"] = retries - 1
+            yield request
+
+    def session_retry_errback(self, failure):
+        self.logger.error(
+            f"You set to retry with new session {failure.request} " "but session_retry_errback() is not implemented."
+        )
