@@ -138,7 +138,7 @@ class RequestSession(object):
     def unlock_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             spider.locked_sessions.discard(response.meta["cookiejar"])
-            yield from wrapped(spider, response, *args, **kwargs)
+            return wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
@@ -146,7 +146,7 @@ class RequestSession(object):
     def discard_session(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             spider.drop_session(response)
-            yield from wrapped(spider, response, *args, **kwargs)
+            return wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
         return _wrapper
