@@ -199,9 +199,9 @@ case your spider generates large amounts of requests, the memory usage can incre
 Regardless you need to use it or not for saving memory, it is still a good practice when you can apply it (in situations where there
 are multiple final chain requests, it is not possible to drop a session when reaching any one of them).
 
-Usually, retries imply to reinitialize a session. The `RequestSession()` object provides a decorator for indicating special retry
-treatment on specific requests. For example, if the requests yielded by `callback3()` in the example above need to reinitialize
-session from the first request in the chain, you would write something like this:
+By default, retrying a request uses the same session. However, frequently you need to reinitialize a session instead. The `RequestSession()`
+object provides a decorator for indicating special retry treatment on specific requests. For example, if the requests yielded by `callback3()`
+in the example above need to reinitialize session starting from the first request in the chain, you would write something like this:
 
 ```python
 
@@ -220,22 +220,22 @@ class MySpider(CrawleraSessionMixinSpider, Spider):
     @crawlera_session.new_session_on_retry
     @crawlera_session.follow_session
     def callback3(self, response):
-        yield Request(...)
+        yield Request(..., callback=self.callback4)
 
     (...)
 
-    def session_retry_errback(self, failure):
-        if failure.request.callback is self.callback3:
-            return Request(..., callback=callback2)
+    def callback4_errback(self, failure) -> Request:
+        return Request(..., callback=callback2)
 
 ```
 
-Notice the introduction of a new decorator, `new_session_on_retry`, and the definition of `session_retry_errback()` method:
+Notice the introduction of a new decorator, `new_session_on_retry`, and the definition (in this case) of `callback4_errback()` method:
 
-- Every response yielded by a callback decorated by  `new_session_on_retry`, will be assigned the errback `session_retry_errback()`.
-  If this method is not overrode, the only result is a log message indicating that the errback hasn't been implemented.
-- Request returned by `session_retry_errback()` will be instructed internaly to initialize a new session, and the same errback will be
-  assigned to it. So you don't need explicit action for it.
+- Every response yielded by a callback decorated by  `new_session_on_retry`, will be assigned an errback with the same name as its
+  callback, but with the `_errback` suffix appended.
+- If this method is not implemented in the spider, an assertion error will be raised.
+- Request returned by `callback_errback()` will be instructed internaly to initialize a new session, and the same errback will be
+  assigned to it for further retries. So you don't need explicit action for it.
 
 By default, the number of session retries for a given request will be 3. This default value can be overriden in the `RequestSession()`
 object initialization, i.e.:
