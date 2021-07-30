@@ -5,6 +5,7 @@ import uuid
 import logging
 import random
 from collections import OrderedDict
+from functools import partial
 
 from scrapy import Request, signals
 from scrapy.exceptions import IgnoreRequest
@@ -159,10 +160,13 @@ class RequestSession(object):
                     obj.meta["dont_retry"] = True
                     obj.meta["crawlera_session_obj"] = self
                     obj.meta["retries"] = self.new_session_retries
+                    errback_name = obj.callback.__name__ + "_errback"
+                    assert hasattr(spider, errback_name), f"Spider doesn't implement {errback_name} method"
+                    errback = getattr(spider, errback_name)
                     assert (
-                        not obj.errback or obj.errback is spider.session_retry_errback
-                    ), "Can't assign spider.session_retry_errback to request."
-                    obj.errback = spider._session_retry_errback
+                        not obj.errback or obj.errback is errback
+                    ), f"Can't assign spider.{errback_name}() to request: already has an errback."
+                    obj.errback = partial(spider._session_retry_errback, errback=errback)
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
@@ -269,21 +273,16 @@ class CrawleraSessionMixinSpider:
             self.locked_sessions.discard(session_id)
             self.crawlera_sessions.pop(session_id)
 
-    def _session_retry_errback(self, failure):
+    def _session_retry_errback(self, failure, errback):
         self.drop_session(failure.request)
         retries = failure.request.meta["retries"]
         if retries == 0:
             self.logger.info(f"Gave up session retries for {failure.request}")
             return
-        request = self.session_retry_errback(failure)
+        request = self.errback(failure)
         if request is not None:
             failure.request.meta["crawlera_session_obj"].init_request(request)
             request.dont_filter = True
-            request.errback = self._session_retry_errback
+            request.errback = partial(self._session_retry_errback, errback=errback)
             request.meta["retries"] = retries - 1
             yield request
-
-    def session_retry_errback(self, failure):
-        self.logger.error(
-            f"You set to retry with new session {failure.request} " "but session_retry_errback() is not implemented."
-        )
