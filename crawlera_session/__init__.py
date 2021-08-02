@@ -279,7 +279,7 @@ class CrawleraSessionMixinSpider:
         if retries == 0:
             self.logger.info(f"Gave up session retries for {failure.request}")
             return
-        request = self.errback(failure)
+        request = errback(failure)
         if request is not None:
             failure.request.meta["crawlera_session_obj"].init_request(request)
             request.dont_filter = True
