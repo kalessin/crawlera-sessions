@@ -13,7 +13,7 @@ from scrapy.downloadermiddlewares.redirect import RedirectMiddleware
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 
 
-__version__ = "1.2.6.1"
+__version__ = "1.2.7"
 
 logger = logging.getLogger(__name__)
 
