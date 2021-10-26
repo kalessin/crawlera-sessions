@@ -203,8 +203,11 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
                 return True
             if spider.can_add_new_sessions():
                 return True
+            if spider.crawler.engine.spider_is_idle(spider):
+                spider.locked_sessions = set()
             if spider.available_sessions:
                 return True
+
             return False
 
         def _next_request():
@@ -222,7 +225,11 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
         scheduler.next_request = _next_request
 
     def spider_closed(self, spider):
-        assert not self.retained_requests, "Unqueued retained requests."
+        if self.retained_requests:
+            self.logger.error(
+                f"Request {self.retained_requests[0]} and {len(self.retained_requests) - 1} others"
+                "retained requests were not unqueued."
+            )
 
     def process_request(self, request, spider):
         assign_crawlera_session = request.meta.get("defer_assign_crawlera_session")
