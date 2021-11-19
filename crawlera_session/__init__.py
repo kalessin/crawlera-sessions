@@ -226,7 +226,7 @@ class CrawleraSessionCookiesMiddleware(CookiesMiddleware):
 
     def spider_closed(self, spider):
         if self.retained_requests:
-            self.logger.error(
+            logger.error(
                 f"Request {self.retained_requests[0]} and {len(self.retained_requests) - 1} others"
                 "retained requests were not unqueued."
             )
