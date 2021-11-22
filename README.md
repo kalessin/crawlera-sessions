@@ -156,7 +156,21 @@ class MySpider(CrawleraSessionMixinSpider, Spider):
 
 ```
 
-For better performance, normally it is better to set the number of concurrent requests to the same as `MAX_PARALLEL_SESSIONS`.
+
+It is important to consider that isage of `unlock_session` is not mandatory, as it is not always possible to determine whether a session
+can be unlocked. For example, consider the case where you need to extract multiple items from a search, and you can't unlock the session
+until the last request is handled. In this case you don't know which will be the last request, so you don't have a callback where to apply
+`unlock_session` decorator. In this situation, locked sessions will be automatically unlocked only when no more requests are pending in the
+scheduler. But notice that this is a suboptimal approach, as many locked sessions should be really available, but not used because
+we cannot know when they are really available until scheduler is idle. (There is a circumvented way to know in advance if
+there is some request in process belonging to a given session, by scanning all scrapy scheduler and downloader queues, a TODO is to check
+viability of this approach, For now it has not been implemented for simplicity.)
+
+For better performance, normally it is better to set the number of concurrent requests to the same or more than as `MAX_PARALLEL_SESSIONS`. If
+you are combining crawlera session requests with no crawlera session requests, concurrent requests need to be bigger than `MAX_PARALLEL_SESSIONS`.
+Otherwise they can be equal. If smaller, session handling will be suboptimal in terms of speed. If too much bigger, many requests may be retained on memory
+and its use may increase significantly, so handling may be suboptimal in terms of memory usage.
+
 Notice that if you don't set `MAX_PARALLEL_SESSIONS`, the behavior of the callback decorated by `defer_assign_session` will
 be that all requests yielded by it will initiate a new session. So the lock/unlock logic doesn't have much sense.
 In this case, you can just use `init_requests` decorator:
