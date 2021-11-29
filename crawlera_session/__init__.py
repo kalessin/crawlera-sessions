@@ -118,7 +118,7 @@ class RequestSession(object):
     def init_requests(self, wrapped):
         def _wrapper(spider, response, *args, **kwargs):
             for obj in wrapped(spider, response, *args, **kwargs):
-                if isinstance(obj, Request):
+                if isinstance(obj, Request) and not obj.meta.get("no_crawlera_session", False):
                     self.init_request(obj)
                 yield obj
 
