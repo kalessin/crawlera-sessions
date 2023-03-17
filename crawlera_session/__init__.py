@@ -61,6 +61,7 @@ class RequestSession(object):
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def assign_crawlera_session(self, spider, request, cookiejar=None):
@@ -113,6 +114,7 @@ class RequestSession(object):
                 yield request
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def init_requests(self, wrapped):
@@ -123,6 +125,7 @@ class RequestSession(object):
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def defer_assign_session(self, wrapped):
@@ -134,6 +137,7 @@ class RequestSession(object):
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def unlock_session(self, wrapped):
@@ -142,6 +146,7 @@ class RequestSession(object):
             return wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def discard_session(self, wrapped):
@@ -150,6 +155,7 @@ class RequestSession(object):
             return wrapped(spider, response, *args, **kwargs)
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
     def new_session_on_retry(self, wrapped):
@@ -170,6 +176,7 @@ class RequestSession(object):
                 yield obj
 
         _wrapper.__name__ = wrapped.__name__
+        _wrapper.wrapped = wrapped
         return _wrapper
 
 
